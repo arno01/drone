@@ -1,0 +1,50 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drone-agent
+  labels:
+    app: drone
+    component: agent
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: drone
+        component: agent
+    spec:
+      containers:
+      - name: drone-agent
+        image: "docker.nixaid.com:5010/drone/agent:latest"
+        imagePullPolicy: Always
+        env:
+          - name: DRONE_SERVER
+            value: drone-svc:9000
+          - name: DRONE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: drone
+                key: secret
+          - name: DOCKER_HOST
+            value: tcp://localhost:2375
+          - name: DRONE_DEBUG
+            value: "false"
+      - name: drone-dind
+        image: "docker.nixaid.com:5010/docker:17.12.0-ce-dind"
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh"]
+        # args: ["-c", "iptables -N DOCKER-USER; iptables -I DOCKER-USER -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu; dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375"]
+        # https://discourse.drone.io/t/docker-mtu-problem/1207/4
+        args: ["-c", "iptables -N DOCKER-USER; iptables -I DOCKER-USER -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu; dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375"]
+        # args: ["--mtu=1360"]
+        env:
+        - name: DOCKER_DRIVER
+          value: overlay2
+        securityContext:
+            privileged: true
+        volumeMounts:
+          - name: docker-graph-storage
+            mountPath: /var/lib/docker
+      volumes:
+      - name: docker-graph-storage
+        emptyDir: {}

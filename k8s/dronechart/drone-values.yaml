@@ -1,0 +1,151 @@
+appVersion: "0.8.2"
+
+images:
+  server:
+    # repository: "drone/drone"
+    repository: "docker.nixaid.com:5010/drone/drone"
+    tag: 0.8.2
+    pullPolicy: Always
+
+  agent:
+    # repository: "drone/agent"
+    repository: "docker.nixaid.com:5010/drone/agent"
+    tag: 0.8.2
+    pullPolicy: Always
+
+  dind:
+    # repository: "docker"
+    repository: "docker.nixaid.com:5010/docker"
+    tag: 17.12.0-ce-dind
+    pullPolicy: IfNotPresent
+
+service:
+  httpPort: 80
+
+  ## If service.type is not set to NodePort, the following statement
+  ## will be ignored.
+  ##
+  # nodePort: 32015
+
+  ## Service type can be set to ClusterIP, NodePort or LoadBalancer.
+  ##
+  type: ClusterIP
+
+ingress:
+  enabled: true
+
+  ## Drone Ingress annotations
+  ##
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: 'true'
+
+  ## Drone hostnames must be provided if Ingress is enabled
+  ##
+  hosts:
+    - drone.test.nixaid.com
+
+  ## Drone Ingress TLS configuration secrets
+  ## Must be manually created in the namespace
+  ##
+  # tls:
+  #   - secretName: drone-test-nixaid-com-tls
+  #     hosts:
+  #       - drone.test.nixaid.com
+
+server:
+  ## If not set, it will be autofilled with the cluster host.
+  ##
+  # host: "https://drone.test.nixaid.com"
+  host: "http://drone.test.nixaid.com"
+
+  ## Drone server configuration.
+  ## Values in here get injected as environment variables.
+  ## ref: http://readme.drone.io/admin/installation-reference
+  ##
+  env:
+    # GIN_MODE: "release" # Enable production mode
+    DRONE_DEBUG: "false"
+    DRONE_DATABASE_DRIVER: "sqlite3"
+    DRONE_DATABASE_DATASOURCE: "/var/lib/drone/drone.sqlite3"
+
+    ## Drone requires some environment variables to bootstrap the
+    ## git service or it won't start up.
+    ## Uncomment this and add your own custom configuration.
+    ##
+    DRONE_PROVIDER: "gitea"
+    DRONE_GITEA: "true"
+    DRONE_GITEA_URL: "https://git.nixaid.com"
+    # DRONE_GITEA_PRIVATE_MODE: "true"
+    DRONE_ADMIN: "arno"
+    # DRONE_VOLUME: "/etc/docker/certs.d:/etc/docker/certs.d:ro"
+    DRONE_OPEN: "true" # registration is opened
+
+    # DRONE_PROVIDER: "bitbucket"
+    # DRONE_ADMIN: "arno01"
+    # DRONE_BITBUCKET: "true"
+    # DRONE_BITBUCKET_CLIENT: "CjUMuMh2jcrj27yrPj" # oauth2 client id (for zjor-drone-nixaid-authenticator-http Consumer)
+    # DRONE_BITBUCKET_SECRET: "w9mfYxThrMXwmp4UrGFjQ6CZ3wqEew8N" # oauth2 client secret
+
+    # DRONE_ORGS: "my-github-org,my-other-github-org"
+    # DRONE_ADMIN:"admin-1,admin-2"
+    # DRONE_GITHUB_CLIENT: "github-oauth2-client-id"
+    # DRONE_GITHUB_SECRET: "github-oauth2-client-secret"
+
+  ## CPU and memory limits for drone server
+  ##
+  resources: {}
+  #  requests:
+  #    memory: 32Mi
+  #    cpu: 40m
+  #  limits:
+  #    memory: 2Gi
+  #    cpu: 1
+
+agent:
+  ## Drone agent configuration.
+  ## Values in here get injected as environment variables.
+  ## ref: http://readme.drone.io/admin/installation-reference
+  ##
+  env:
+    DRONE_DEBUG: "false"
+
+  ## CPU and memory limits for drone agent
+  ##
+  resources: {}
+  #  requests:
+  #    memory: 32Mi
+  #    cpu: 40m
+  #  limits:
+  #    memory: 2Gi
+  #    cpu: 1
+
+## Enable persistence using Persistent Volume Claims
+## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+##
+persistence:
+  enabled: false
+
+  ## A manually managed Persistent Volume and Claim
+  ## Requires persistence.enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  # existingClaim: "pvc-test-drone"
+
+  ## rabbitmq data Persistent Volume Storage Class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+## Uncomment this if you want to set a specific shared secret between
+## the agents and servers, otherwise this will be auto-generated.
+##
+# openssl rand 1024 | tr -dc 'a-zA-Z0-9' | head -c24 ; echo
+#
+sharedSecret: zz5dRgsARTRxKGvOqeNfXrZ0

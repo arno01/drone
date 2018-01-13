@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    nslabel: devns
+  name: devns
+spec: {}
+status: {}

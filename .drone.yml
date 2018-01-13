@@ -137,6 +137,18 @@ pipeline:
     when:
       event: tag
 
+  deploy-drone:
+    image: andrey01/kubectl:1.9.1
+    # pull: true # always pull the image
+    secrets: [ dev_key, dev_crt ]
+    commands:
+      - "sh .deploy-drone.sh"
+      - "kubectl --context=dev-context version"
+      - "kubectl --context=dev-context get pods"
+      - "kubectl --context=dev-context replace --force -f k8s/"
+      - "kubectl --context=dev-context get pods"
+      # XXX - kubectl --context=dev-context patch deployment drone-test -p '{"spec":{"template":{"spec":{"containers":[{"name":"drone-test","image":"docker.nixaid.com:5010/drone/drone:latest"}]}}}}'
+
 services:
   postgres:
     image: postgres:9.6-alpine

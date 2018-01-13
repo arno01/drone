@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.kubernetes.io/rewrite-target: "/"
+    kubernetes.io/ingress.class: "nginx"
+    # kubernetes.io/tls-acme: "true"
+  labels:
+    app: drone
+  name: drone
+spec:
+  rules:
+    - host: drone.test.nixaid.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: drone-svc
+              servicePort: 80

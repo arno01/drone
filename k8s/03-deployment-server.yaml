@@ -1,0 +1,62 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drone-server
+  labels:
+    app: drone
+    component: server
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: drone
+        component: server
+    spec:
+      containers:
+      - name: drone-server
+        image: "docker.nixaid.com:5010/drone/drone:latest"
+        imagePullPolicy: Always
+        env:
+          - name: DRONE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: drone
+                key: secret
+          - name: DRONE_HOST
+            value: http://drone.test.nixaid.com
+          - name: DRONE_DATABASE_DATASOURCE
+            value: "/var/lib/drone/drone.sqlite3"
+          - name: DRONE_DATABASE_DRIVER
+            value: "sqlite3"
+          - name: DRONE_DEBUG
+            value: "true"
+          - name: DRONE_PROVIDER
+            value: "gitea"
+          - name: DRONE_OPEN
+            value: "true"
+          - name: DRONE_GITEA
+            value: "true"
+          - name: DRONE_ADMIN
+            value: "arno"
+          - name: DRONE_GITEA_PRIVATE_MODE
+            value: "true"
+          - name: DRONE_GITEA_URL
+            value: "https://git.nixaid.com"
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: grpc
+          containerPort: 9000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/drone
+      volumes:
+      - name: data
+        emptyDir: {}

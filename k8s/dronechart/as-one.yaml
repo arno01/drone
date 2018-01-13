@@ -1,0 +1,198 @@
+# Source: drone/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: drone-devns-drone
+  labels:
+    app: drone
+    chart: "drone-0.2.1"
+    release: "drone-devns"
+    heritage: "Tiller"
+type: Opaque
+data:
+  
+  secret: "eno1ZFJnc0FSVFJ4S0d2T3FlTmZYclow"
+---
+# Source: drone/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: drone-devns-drone
+  labels:
+    app: drone
+    chart: "drone-0.2.1"
+    release: "drone-devns"
+    heritage: "Tiller"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+  - name: grpc
+    port: 9000
+    targetPort: 9000
+  selector:
+    app: drone
+    release: "drone-devns"
+    component: server
+---
+# Source: drone/templates/deployment-agent.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drone-devns-drone-agent
+  labels:
+    app: drone
+    chart: "drone-0.2.1"
+    release: "drone-devns"
+    heritage: "Tiller"
+    component: agent
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: drone
+        release: "drone-devns"
+        component: agent
+    spec:
+      containers:
+      - name: drone-devns-drone-agent
+        image: "docker.nixaid.com:5010/drone/agent:0.8.2"
+        imagePullPolicy: Always
+        env:
+          - name: DRONE_SERVER
+            value: drone-devns-drone:9000
+          - name: DRONE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: drone-devns-drone
+                key: secret
+          - name: DOCKER_HOST
+            value: tcp://localhost:2375
+          
+          - name: DRONE_DEBUG
+            value: "false"
+          
+        resources:
+          {}
+          
+      - name: drone-devns-drone-dind
+        image: "docker.nixaid.com:5010/docker:17.12.0-ce-dind"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DOCKER_DRIVER
+          value: overlay2
+        securityContext:
+            privileged: true
+        resources:
+          {}
+          
+        volumeMounts:
+          - name: docker-graph-storage
+            mountPath: /var/lib/docker
+      volumes:
+      - name: docker-graph-storage
+        emptyDir: {}
+---
+# Source: drone/templates/deployment-server.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drone-devns-drone-server
+  labels:
+    app: drone
+    chart: "drone-0.2.1"
+    release: "drone-devns"
+    heritage: "Tiller"
+    component: server
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: drone
+        release: "drone-devns"
+        component: server
+    spec:
+      containers:
+      - name: drone-devns-drone-server
+        image: "docker.nixaid.com:5010/drone/drone:0.8.2"
+        imagePullPolicy: Always
+        env:
+          - name: DRONE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: drone-devns-drone
+                key: secret
+          - name: DRONE_HOST
+            value: http://drone.test.nixaid.com
+          
+          - name: DRONE_ADMIN
+            value: "arno"
+          
+          - name: DRONE_DATABASE_DATASOURCE
+            value: "/var/lib/drone/drone.sqlite3"
+          
+          - name: DRONE_DATABASE_DRIVER
+            value: "sqlite3"
+          
+          - name: DRONE_DEBUG
+            value: "false"
+          
+          - name: DRONE_GITEA
+            value: "true"
+          
+          - name: DRONE_GITEA_URL
+            value: "https://git.nixaid.com"
+          
+          - name: DRONE_OPEN
+            value: "true"
+          
+          - name: DRONE_PROVIDER
+            value: "gitea"
+          
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: grpc
+          containerPort: 9000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        resources:
+          {}
+          
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/drone
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+# Source: drone/templates/ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.kubernetes.io/rewrite-target: "/"
+    kubernetes.io/ingress.class: "nginx"
+  labels:
+    app: drone
+    heritage: "Tiller"
+    release: "drone-devns"
+    chart: "drone-0.2.1"
+  name: drone-devns-drone
+spec:
+  rules:
+    - host: drone.test.nixaid.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: drone-devns-drone
+              servicePort: 80
